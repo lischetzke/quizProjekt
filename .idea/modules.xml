@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/QuestionManager/QuestionManager.iml" filepath="$PROJECT_DIR$/QuestionManager/QuestionManager.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/quizProjektServer.iml" filepath="$PROJECT_DIR$/.idea/quizProjektServer.iml" />
+    </modules>
+  </component>
+</project>
