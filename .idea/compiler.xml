@@ -6,10 +6,14 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="QM" />
+        <module name="Devclient" />
         <module name="QuestionManager" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="Devclient" target="11" />
+      <module name="QM" target="11" />
       <module name="QuestionManagement" target="11" />
       <module name="QuestionManager" target="11" />
     </bytecodeTargetLevel>

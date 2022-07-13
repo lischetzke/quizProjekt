@@ -2,6 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Devclient/Devclient.iml" filepath="$PROJECT_DIR$/Devclient/Devclient.iml" />
+      <module fileurl="file://$PROJECT_DIR$/Playarea/Playarea.iml" filepath="$PROJECT_DIR$/Playarea/Playarea.iml" />
+      <module fileurl="file://$PROJECT_DIR$/QuestionManager/QM.iml" filepath="$PROJECT_DIR$/QuestionManager/QM.iml" />
       <module fileurl="file://$PROJECT_DIR$/QuestionManager/QuestionManager.iml" filepath="$PROJECT_DIR$/QuestionManager/QuestionManager.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/quizProjektServer.iml" filepath="$PROJECT_DIR$/.idea/quizProjektServer.iml" />
     </modules>

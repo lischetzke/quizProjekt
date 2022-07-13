@@ -1,22 +1,27 @@
 package schule.fdslimburg.quiz.qm;
 
+import com.google.gson.GsonBuilder;
 import javafx.application.Application;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.control.cell.TextFieldTableCell;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Dictionary;
-import java.util.Hashtable;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.google.gson.Gson;
+import schule.fdslimburg.quiz.qm.data.AnswerSerialized;
+import schule.fdslimburg.quiz.qm.data.Data;
+import schule.fdslimburg.quiz.qm.data.QuestionSerialized;
 
 public class QMApp extends Application {
 	private static Font fontMonospaced;
@@ -46,12 +51,15 @@ public class QMApp extends Application {
 	}
 	
 	List<Question> questions = new ArrayList<> ();
-	Dictionary<Question, Answer> answers = new Hashtable<> ();
+	Dictionary<Question, List<Answer>> answers = new Hashtable<> ();
 	
 	MenuBar menubar;
 	Menu mFile;
 	SeparatorMenuItem miFileSep1;
 	MenuItem miFileNew, miFileOpen, miFileSave, miFileExit;
+	
+	Label lbName;
+	TextField tfName;
 	
 	Button btnQadd, btnQdel;
 	TableView<Question> tblQuestions;
@@ -66,6 +74,10 @@ public class QMApp extends Application {
 	
 	@Override
 	public void start (Stage stage) throws IOException {
+		lbName = new Label("Fragenkategorie: ");
+		tfName = new TextField ();
+		
+		//====================
 		btnQadd = new Button ("+");
 		btnQdel = new Button ("-");
 		
@@ -76,9 +88,13 @@ public class QMApp extends Application {
 		
 		tcQid = new TableColumn<> ("ID");
 		tcQid.setCellValueFactory (new PropertyValueFactory<> ("ID"));
+		tcQid.setEditable (true);
 		
 		tcQquestion = new TableColumn<> ("Question");
 		tcQquestion.setCellValueFactory (new PropertyValueFactory<> ("Question"));
+		tcQquestion.setEditable (true);
+		tcQquestion.setCellFactory(TextFieldTableCell.forTableColumn());
+		tcQquestion.setOnEditCommit(e->e.getTableView().getItems().get(e.getTablePosition().getRow()).setQuestion (e.getNewValue()));
 		
 		tblQuestions.setEditable (true);
 		tblQuestions.getColumns ().setAll (tcQid, tcQquestion);
@@ -94,12 +110,19 @@ public class QMApp extends Application {
 		
 		tcAid = new TableColumn<> ("ID");
 		tcAid.setCellValueFactory (new PropertyValueFactory<> ("ID"));
+		tcAid.setEditable (true);
 		
 		tcAanswer = new TableColumn<> ("Answer");
 		tcAanswer.setCellValueFactory (new PropertyValueFactory<> ("Answer"));
+		tcAanswer.setEditable (true);
+		tcAanswer.setCellFactory(TextFieldTableCell.forTableColumn());
+		tcAanswer.setOnEditCommit(e->e.getTableView().getItems().get(e.getTablePosition().getRow()).setAnswer (e.getNewValue()));
 		
 		tcAcorrect = new TableColumn<> ("Correct");
 		tcAcorrect.setCellValueFactory (new PropertyValueFactory<> ("Correct"));
+		tcAcorrect.setEditable (true);
+		tcAcorrect.setCellFactory(p -> new CheckBoxTableCell<>());
+		tcAcorrect.setOnEditCommit(e->e.getTableView().getItems().get(e.getTablePosition().getRow()).setCorrect (Objects.equals (e.getNewValue (), "true")));
 		
 		tblAnswers.setEditable (true);
 		tblAnswers.getColumns ().setAll (tcAid, tcAanswer, tcAcorrect);
@@ -128,16 +151,19 @@ public class QMApp extends Application {
 		gridPane.setHgap (5);
 		gridPane.setAlignment (Pos.CENTER);
 		
-		gridPane.add (btnQadd, 0, 0, 1, 1);
-		gridPane.add (btnQdel, 1, 0, 1, 1);
-		gridPane.add (tblQuestions, 0, 1, 5, 3);
+		gridPane.add(lbName, 0, 0, 6, 1);
+		gridPane.add(tfName, 6, 0, 6, 1);
+		
+		gridPane.add (btnQadd, 0, 1, 2, 1);
+		gridPane.add (btnQdel, 2, 1, 2, 1);
+		gridPane.add (tblQuestions, 0, 2, 6, 3);
 		tblQuestions.prefWidthProperty ().bind (gridPane.widthProperty ().divide (2.0));
 		tcQid.prefWidthProperty ().bind (tblQuestions.widthProperty ().multiply (0.2));
 		tcQquestion.prefWidthProperty ().bind (tblQuestions.widthProperty ().multiply (0.8));
 		
-		gridPane.add (btnAadd, 5, 0, 1, 1);
-		gridPane.add (btnAdel, 6, 0, 1, 1);
-		gridPane.add (tblAnswers, 5, 1, 5, 3);
+		gridPane.add (btnAadd, 6, 1, 2, 1);
+		gridPane.add (btnAdel, 8, 1, 2, 1);
+		gridPane.add (tblAnswers, 6, 2, 6, 3);
 		tblAnswers.prefWidthProperty ().bind (gridPane.widthProperty ().divide (2.0));
 		tcAid.prefWidthProperty ().bind (tblAnswers.widthProperty ().multiply (0.2));
 		tcAanswer.prefWidthProperty ().bind (tblAnswers.widthProperty ().multiply (0.6));
@@ -165,14 +191,17 @@ public class QMApp extends Application {
 			newQuestion.setID (nextId.get ());
 			newQuestion.setQuestion ("None");
 			questions.add (newQuestion);
-			tblQuestions.getItems ().add (newQuestion);
+			answers.put (newQuestion, new ArrayList<> ());
+			tblQuestions.getItems ().clear ();
+			tblQuestions.getItems ().addAll (questions);
 		});
 		
 		btnQdel.setOnAction (e -> {
 			// Remove selected Question
 			tblQuestions.getSelectionModel ().getSelectedItems ().forEach (question -> {
-				tblQuestions.getItems ().remove (question);
 				questions.remove (question);
+				tblQuestions.getItems ().clear ();
+				tblQuestions.getItems ().addAll (questions);
 			});
 		});
 		
@@ -180,22 +209,16 @@ public class QMApp extends Application {
 			if (oldSelection != null) {
 				// Save answers to old question
 				System.out.println ("Save Answers to Question");
-				questions.forEach (q -> {
-					if (q == oldSelection) {
-						System.out.println ("Save Answers to Question \"" + q.getQuestion () + "\"");
-						System.out.println ("Tblsize: " + tblAnswers.getItems ().size ());
-						q.setAnswers (tblAnswers.getItems ());
-					}
-				});
-				//oldSelection.AnswersProperty ().set(tblAnswers.getItems ());
+				answers.get (oldSelection).addAll (tblAnswers.getItems ());
 			}
+			
+			tblAnswers.getItems ().clear ();
 			
 			if (newSelection != null) {
 				// Load answers from new question
 				System.out.println ("Load Answers from Question");
-				answers.remove ()
-				tblAnswers.getItems ().clear ();
-				tblAnswers.getItems ().setAll (answers.get (newSelection));
+				tblAnswers.getItems ().addAll (answers.get (newSelection));
+				answers.get (newSelection).clear ();
 			}
 		});
 	}
@@ -236,6 +259,40 @@ public class QMApp extends Application {
 			// TODO: Open FileOpenDialog
 		});
 		miFileSave.setOnAction (e -> {
+			// Generate JSON
+			Data data = new Data ();
+			data.name = tfName.getText ();
+			data.questions = new ArrayList<> ();
+			for(Question q : questions) {
+				QuestionSerialized qs = new QuestionSerialized ();
+				qs.question = q.getQuestion ();
+				qs.answers = new ArrayList<> ();
+				
+				for(Answer a : answers.get (q)) {
+					AnswerSerialized as = new AnswerSerialized ();
+					as.answer = a.getAnswer ();
+					as.correct = a.getCorrect ();
+					
+					qs.answers.add (as);
+				}
+				
+				if(q == tblQuestions.getSelectionModel ().getSelectedItem ()) {
+					for(Answer a : tblAnswers.getItems ()) {
+						AnswerSerialized as = new AnswerSerialized ();
+						as.answer = a.getAnswer ();
+						as.correct = a.getCorrect ();
+						
+						qs.answers.add (as);
+					}
+				}
+				
+				data.questions.add (qs);
+			}
+			
+			GsonBuilder builder = new GsonBuilder();
+			Gson gson = builder.create();
+			System.out.println(gson.toJson(data));
+			
 			// TODO: Open FileSaveDialog
 		});
 		miFileExit.setOnAction (e -> {
