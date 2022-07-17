@@ -6,13 +6,15 @@ import schule.fdslimburg.quiz.server.events.ClientDataEventListener;
 import schule.fdslimburg.quiz.server.events.NewClientEventArgs;
 import schule.fdslimburg.quiz.server.events.NewClientEventListener;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.EventListener;
 import java.util.List;
-import java.util.concurrent.TimeoutException;
+
+import static schule.fdslimburg.quiz.server.comm.Client.millis;
 
 enum Character {
 	ENTER ('\n');
@@ -36,6 +38,7 @@ public class Communication implements IControl {
 	private boolean runningAcceptingClients = false;
 	private boolean runningHandlingClients = false;
 	private List<Client> clients = new ArrayList<> ();
+	private List<Client> clientsToRemove = new ArrayList<> ();
 	private boolean waitingClients = true;
 	public List<EventListener> eventListeners = new ArrayList<> ();
 	
@@ -112,18 +115,52 @@ public class Communication implements IControl {
 			while (!stopThread) {
 				for (Client c : clients) {
 					try {
-						if (c.input.available () < 1)
+						// Send Ping to client
+						if((c.lastPingSent + 500) < millis()) {
+							sendData (c, MSG_PING);
+							c.lastPingSent = millis();
+							System.out.println ("Send Ping to " + c.client.getInetAddress ().toString () + " at " + c.lastPingSent);
+						}
+						
+						// Check if clients last ping is 2 seconds old
+						if(c.lastPingReceived != 0 && (c.lastPingReceived + 2000) < millis()) {
+							System.out.println ("Removing client " + c.client.getInetAddress ().toString () + " because timeout.");
+							c.close();
+							clientsToRemove.add (c);
+							continue;
+						}
+						
+						if(clientsToRemove.size () > 0) {
+							clients.removeAll (clientsToRemove);
+							clientsToRemove.clear ();
+							System.out.println ("Scheduled removal of clients finished.");
+						}
+						
+						if (!c.input.ready ())
 							continue;
 						
 						Thread.sleep (5);
 						
 						List<Byte> data = new ArrayList<> ();
-						while(c.input.available () > 0) {
+						while(c.input.ready()) {
 							data.add((byte) c.input.read ());
 						}
 						byte[] data2 = new byte[data.size ()];
 						for(int i = 0; i < data.size (); i++) {
 							data2[i] = data.get (i);
+						}
+						
+						if(data2[13] == 0x01) {
+							c.lastPingReceived = millis();
+							System.out.println ("Ping received for " + c.client.getInetAddress ().toString () + " at " + c.lastPingReceived);
+						} else {
+							// Show Client data
+							byte[] cTimestampBytes = new byte[8];
+							System.arraycopy (data2, 4, cTimestampBytes, 0, 8);
+							long cTimestamp = bytesToLong (cTimestampBytes);
+							String datastring1 = String.format("%8s", Integer.toBinaryString(data2[12] & 0xFF)).replace(' ', '0');
+							String datastring2 = String.format("%8s", Integer.toBinaryString(data2[13] & 0xFF)).replace(' ', '0');
+							System.out.println ("Client data received: " + cTimestamp + " / " + datastring1 + " " + datastring2);
 						}
 						
 						// Fire ClientDataEvent
@@ -137,6 +174,8 @@ public class Communication implements IControl {
 					}
 				}
 			}
+			
+			// TODO: Disconnect all clients
 			
 			runningHandlingClients = false;
 		}
@@ -171,6 +210,43 @@ public class Communication implements IControl {
 				((ClientDataEventListener) el).triggerEvent (args);
 			}
 		}
+	}
+	
+	private static final byte[] MSG_PING = {0x00, 0x01};
+	
+	private void sendData(Client c, byte[] userbytes) {
+		byte[] data = {
+				(byte) 0xEE, (byte) 0xEE, (byte) 0xEE, (byte) 0xEE,
+				(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+				(byte) 0x00, (byte) 0x00,
+				(byte) 0x77, (byte) 0x77, (byte) 0x77, (byte) 0x77};
+		
+		System.arraycopy (userbytes, 0, data, 12, Math.min (2, userbytes.length));
+		
+		byte[] millis = longToBytes(millis());
+		System.arraycopy (millis, 0, data, 4, Math.min (8, millis.length));
+		
+		try {
+			if(c.output == null)
+				return;
+			c.output.write (data);
+			c.output.flush();
+		} catch (IOException ex) {
+			throw new RuntimeException (ex);
+		}
+	}
+	
+	public static byte[] longToBytes(long x) {
+		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+		buffer.putLong(x);
+		return buffer.array();
+	}
+	
+	public static long bytesToLong(byte[] bytes) {
+		ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+		buffer.put(bytes);
+		buffer.flip();//need flip
+		return buffer.getLong();
 	}
 	
 	@Override

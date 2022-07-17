@@ -12,13 +12,18 @@ import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.time.ZoneId;
-import java.util.*;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.List;
 
-public class DevClient extends Application {
+public class DevClientV2 extends Application {
 	private static Font fontMonospaced;
 	
 	public static void main (String[] args) {
@@ -48,15 +53,13 @@ public class DevClient extends Application {
 	TextArea taComm;
 	String taComm_text;
 	Label lbServer;
-	Label lbSendData;
 	Label lbAllData;
 	Label lbStatus;
 	String lbStatus_text;
 	Paint lbStatus_paint;
 	TextField tfInputServer;
-	TextField tfInputData;
 	Button btnConnect;
-	Button btnSendData;
+	Button btnBuzzer;
 	
 	Socket client;
 	DataOutputStream out;
@@ -67,16 +70,19 @@ public class DevClient extends Application {
 	Thread threadUpdateUI;
 	boolean updateUI = false;
 	
+	long lastPing = 0;
+	
 	@Override
 	public void start (Stage stage) throws IOException {
 		threadConnectionStatus = new Thread (() -> {
 			while (true) {
 				try {
 					if (client != null && lbStatus != null) {
-						if (client.isConnected ()) {
+						if (client.isConnected () && (lastPing + 1000) >= millis()) {
 							lbStatus_text = "Connected!";
 							lbStatus_paint = Color.LIGHTGREEN;
 							updateUI = true;
+							sendData ("0001");
 						} else {
 							lbStatus_text = "Disconnected!";
 							lbStatus_paint = Color.RED;
@@ -86,6 +92,24 @@ public class DevClient extends Application {
 						lbStatus_text = "Disconnected!";
 						lbStatus_paint = Color.RED;
 						updateUI = true;
+					}
+					
+					if(client != null && (lastPing + 2000) < millis()) {
+						System.out.println ("Connection seems dead, closing now");
+						try {
+							if(in != null) {
+								in.close ();
+								in = null;
+							}
+							if(out != null) {
+								out.close ();
+								out = null;
+							}
+							if(client != null) {
+								client.close ();
+								client = null;
+							}
+						} catch(Exception e) {}
 					}
 					
 					Thread.sleep (500);
@@ -199,41 +223,9 @@ public class DevClient extends Application {
 		lbStatus.setFont (fontMonospaced);
 		lbStatus.setTextFill (Color.RED);
 		
-		lbSendData = new Label ("Data:");
-		lbSendData.setFont (fontMonospaced);
-		tfInputData = new TextField ();
-		tfInputData.setFont (fontMonospaced);
-		List<Character> allowedChars = List.of ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F');
-		tfInputData.setTextFormatter (new TextFormatter<> ((change) -> {
-			String text = change.getText ().toUpperCase ();
-			StringBuilder out = new StringBuilder ();
-			
-			int charcount = 0;
-			
-			// only leave allowed character
-			for (char s1 : text.toCharArray ()) {
-				if(charcount >= 4)
-					break;
-				
-				boolean allowed = false;
-				for (char s2 : allowedChars) {
-					if (s1 == s2) {
-						allowed = true;
-						break;
-					}
-				}
-				if (allowed) {
-					out.append (s1);
-					charcount++;
-				}
-			}
-			
-			change.setText (out.toString ());
-			return change;
-		}));
-		btnSendData = new Button ("Send!");
-		btnSendData.setFont (fontMonospaced);
-		btnSendData.setOnAction (e -> {
+		btnBuzzer = new Button ("BUZZ");
+		btnBuzzer.setFont (fontMonospaced);
+		btnBuzzer.setOnAction (e -> {
 			/*
 			 * Network data structure (same data as answer from server to client):
 			 * 32 bit: Starting sequence
@@ -250,24 +242,7 @@ public class DevClient extends Application {
 			 * 32 bit: End sequence
 			 *          0111 0111 0111 0111 / 0x7777
 			 */
-			byte[] data = {
-					(byte) 0xEE, (byte) 0xEE, (byte) 0xEE, (byte) 0xEE,
-					(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-					(byte) 0x00, (byte) 0x00,
-					(byte) 0x77, (byte) 0x77, (byte) 0x77, (byte) 0x77};
-			
-			String userdata = tfInputData.getText ();
-			byte[] userbytes = hexToBytes(userdata);
-			System.arraycopy (userbytes, 0, data, 12, Math.min (2, userbytes.length));
-			
-			byte[] millis = longToBytes(millis());
-			System.arraycopy (millis, 0, data, 4, Math.min (8, millis.length));
-			
-			try {
-				out.write (data);
-			} catch (IOException ex) {
-				throw new RuntimeException (ex);
-			}
+			sendData ("0002");
 		});
 		
 		lbAllData = new Label ("Communication:");
@@ -308,30 +283,43 @@ public class DevClient extends Application {
 		
 		gridPane.add (lbStatus, 0, 1, 2, 1);
 		
-		gridPane.add (lbSendData, 0, 4, 2, 1);
-		gridPane.add (tfInputData, 1, 4, 3, 1);
-		btnSendData.setMaxWidth (Double.MAX_VALUE);
-		gridPane.add (btnSendData, 4, 4, 2, 1);
-		GridPane.setFillWidth (btnSendData, true);
+		btnBuzzer.setMaxWidth (Double.MAX_VALUE);
+		gridPane.add (btnBuzzer, 0, 4, 2, 1);
+		GridPane.setFillWidth (btnBuzzer, true);
 		
 		gridPane.add (lbAllData, 0, 7, 2, 1);
 		gridPane.add (taComm, 0, 8, 6, 9);
 		
 		VBox container = new VBox ();
-		//container.setMinSize (524, 600);
 		container.setFillWidth (true);
 		container.getChildren ().addAll (gridPane);
 		
 		Scene scene = new Scene (container);
 		
-		stage.setTitle ("Quiz: Devclient");
+		stage.setTitle ("Quiz: Devclient v2");
 		stage.setResizable (false);
-		//stage.setMinHeight (600);
-		//stage.setMinWidth (524);
-		//stage.setMaxHeight (600);
-		//stage.setMaxWidth (524);
 		stage.setScene (scene);
 		stage.show ();
+	}
+	
+	private void sendData(String userdata) {
+		byte[] data = {
+				(byte) 0xEE, (byte) 0xEE, (byte) 0xEE, (byte) 0xEE,
+				(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
+				(byte) 0x00, (byte) 0x00,
+				(byte) 0x77, (byte) 0x77, (byte) 0x77, (byte) 0x77};
+		
+		byte[] userbytes = hexToBytes(userdata);
+		System.arraycopy (userbytes, 0, data, 12, Math.min (2, userbytes.length));
+		
+		byte[] millis = longToBytes(millis());
+		System.arraycopy (millis, 0, data, 4, Math.min (8, millis.length));
+		
+		try {
+			out.write (data);
+		} catch (IOException ex) {
+			throw new RuntimeException (ex);
+		}
 	}
 	
 	private void processData(byte[] data, boolean server) {

@@ -1,0 +1,60 @@
+{
+  "name": "Testfragen",
+  "questions": [
+    {
+      "question": "Ist dies eine Testfrage?",
+      "answers": [
+        {
+          "answer": "Ja",
+          "correct": true
+        },
+        {
+          "answer": "Nein",
+          "correct": false
+        }
+      ]
+    },
+    {
+      "question": "Was ist 1+1?",
+      "answers": [
+        {
+          "answer": "0",
+          "correct": false
+        },
+        {
+          "answer": "1",
+          "correct": false
+        },
+        {
+          "answer": "2",
+          "correct": true
+        },
+        {
+          "answer": "3",
+          "correct": false
+        }
+      ]
+    },
+    {
+      "question": "Wie ist die 6. Stelle von Pi nach dem Komma?",
+      "answers": [
+        {
+          "answer": "1",
+          "correct": false
+        },
+        {
+          "answer": "2",
+          "correct": true
+        },
+        {
+          "answer": "3",
+          "correct": false
+        },
+        {
+          "answer": "4",
+          "correct": false
+        }
+      ]
+    }
+  ]
+}

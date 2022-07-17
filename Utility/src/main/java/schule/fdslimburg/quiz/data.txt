@@ -1,0 +1,29 @@
+/*
+ * Network data structure (same data as answer from server to client):
+ * 32 bit: Starting sequence
+ *          1110 1110 1110 1110 / 0xEEEE
+ * 64 bit: timestamp in millis
+ * 16 bit: Data
+ *    10 bit: unused
+ *     1 bit: Answer wrong
+ *     1 bit: Answer correct
+ *     1 bit: Reset light
+ *     1 bit: Set Light
+ *     1 bit: Pressed enter
+ *     1 bit: Ping
+ * 32 bit: End sequence
+ *          0111 0111 0111 0111 / 0x7777
+ */
+
+
+Client -> Server:
+0001    Ping
+0002    Pressed Enter
+
+Server -> Client:
+0001    Ping
+0002    ACK: Pressed Enter
+0004    Set Light
+0008    Reset Light
+0010    Answer correct
+0020    Answer wrong

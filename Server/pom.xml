@@ -4,10 +4,10 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>schule.fdslimburg.quiz.devclient</groupId>
-    <artifactId>Devclient</artifactId>
+    <groupId>schule.fdslimburg.quiz</groupId>
+    <artifactId>Server</artifactId>
     <version>1.0-SNAPSHOT</version>
-    <name>Devclient</name>
+    <name>Server</name>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -42,6 +42,11 @@
             </exclusions>
         </dependency>
         <dependency>
+            <groupId>org.kordamp.bootstrapfx</groupId>
+            <artifactId>bootstrapfx-core</artifactId>
+            <version>0.4.0</version>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>${junit.version}</version>
@@ -54,10 +59,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>schule.fdslimburg.quiz</groupId>
-            <artifactId>Utility</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.9.0</version>
         </dependency>
     </dependencies>
 
@@ -81,8 +85,7 @@
                         <!-- Default configuration for running with: mvn clean javafx:run -->
                         <id>default-cli</id>
                         <configuration>
-                            <mainClass>
-                                schule.fdslimburg.quiz.devclient.devclient/schule.fdslimburg.quiz.devclient.devclient.HelloApplication
+                            <mainClass>schule.fdslimburg.quiz.server/schule.fdslimburg.quiz.server.Server
                             </mainClass>
                             <launcher>app</launcher>
                             <jlinkZipName>app</jlinkZipName>

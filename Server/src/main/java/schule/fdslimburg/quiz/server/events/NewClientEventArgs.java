@@ -1,6 +1,5 @@
 package schule.fdslimburg.quiz.server.events;
 
-public class ClientDataEventArgs {
+public class NewClientEventArgs {
 	public int clientId;
-	public byte[] data;
 }
