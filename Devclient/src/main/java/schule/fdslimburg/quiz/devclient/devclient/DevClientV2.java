@@ -12,28 +12,17 @@ import javafx.scene.paint.Paint;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.List;
+import java.util.*;
 
 public class DevClientV2 extends Application {
 	private static Font fontMonospaced;
 	
 	public static void main (String[] args) {
 		String[] fontsMonospaced = { "Lucida Console", "Consolas", "Courier New", "Monospaced" };
-		System.out.println ("FontFamilies:");
 		List<String> fonts = Font.getFamilies ();
-		for (String f : fonts) {
-			System.out.println (f);
-		}
-		System.out.println ("====================");
 		
 		for (String s : fontsMonospaced) {
 			for (String f : fonts) {
@@ -62,27 +51,32 @@ public class DevClientV2 extends Application {
 	Button btnBuzzer;
 	
 	Socket client;
-	DataOutputStream out;
+	BufferedWriter out;
 	BufferedReader in;
 	
 	Thread threadConnectionStatus;
 	Thread threadIO;
 	Thread threadUpdateUI;
 	boolean updateUI = false;
+	boolean killConn = false;
 	
-	long lastPing = 0;
+	long lastPingSent = 0L;
+	long lastPingReceived = 0L;
 	
 	@Override
-	public void start (Stage stage) throws IOException {
+	public void start (Stage stage) {
 		threadConnectionStatus = new Thread (() -> {
 			while (true) {
 				try {
 					if (client != null && lbStatus != null) {
-						if (client.isConnected () && (lastPing + 1000) >= millis()) {
+						if (client.isConnected () && !killConn) {
 							lbStatus_text = "Connected!";
 							lbStatus_paint = Color.LIGHTGREEN;
 							updateUI = true;
-							sendData ("0001");
+							if((lastPingSent + 1000) < millis()) {
+								sendData ("0001");
+								lastPingSent = millis ();
+							}
 						} else {
 							lbStatus_text = "Disconnected!";
 							lbStatus_paint = Color.RED;
@@ -94,8 +88,9 @@ public class DevClientV2 extends Application {
 						updateUI = true;
 					}
 					
-					if(client != null && (lastPing + 2000) < millis()) {
+					if(client != null && lastPingReceived != 0 && (lastPingReceived + 5000) < millis()) {
 						System.out.println ("Connection seems dead, closing now");
+						killConn = true;
 						try {
 							if(in != null) {
 								in.close ();
@@ -109,7 +104,7 @@ public class DevClientV2 extends Application {
 								client.close ();
 								client = null;
 							}
-						} catch(Exception e) {}
+						} catch(Exception ignored) {}
 					}
 					
 					Thread.sleep (500);
@@ -123,40 +118,15 @@ public class DevClientV2 extends Application {
 		threadIO = new Thread (() -> {
 			while (true) {
 				try {
-					if (client != null && client.isConnected () && in != null) {
+					if (client != null && in != null) {
 						if(in.ready()) {
 							Thread.sleep(5);
-							int status = 0;
-							
-							byte[] data = new byte[20];
-							
-							while (in.ready ()) {
-								int raw = in.read ();
-								if(raw == -1) // End of stream
-									break;
-								
-								if((status == 0 || status == 1) && raw == 0xEEEE) {
-									// Starting sequence
-									data[status * 2] = (byte) ((raw & 0xFF00) >> 8);
-									data[status * 2 + 1] = (byte) (raw & 0x00FF);
-									status++;
-								} else if((status == 8 || status == 9) && raw == 0x7777) {
-									// Ending sequence
-									data[status * 2] = (byte) ((raw & 0xFF00) >> 8);
-									data[status * 2 + 1] = (byte) (raw & 0x00FF);
-									status++;
-								} else {
-									// Data
-									data[status * 2] = (byte) ((raw & 0xFF00) >> 8);
-									data[status * 2 + 1] = (byte) (raw & 0x00FF);
-									status++;
-								}
-								
-								if(status == 10) {
-									// Data received
-									processData(data, true);
-								}
-							}
+						}
+						
+						while (in.ready ()) {
+							String data = in.readLine ();
+							System.out.println ("Data received: " + data);
+							processData(data, true);
 						}
 					}
 					
@@ -203,13 +173,14 @@ public class DevClientV2 extends Application {
 					client.close ();
 					btnConnect.setText ("Connect!");
 				} else {
+					killConn = false;
 					String[] server = { tfInputServer.getText ().split (":")[0], "5555" };
 					if (tfInputServer.getText ().contains (":"))
 						server[1] = tfInputServer.getText ().split (":")[1];
 					System.out.println ("Connecting to " + server[0] + " : " + server[1]);
 					client = new Socket (server[0], Integer.parseInt (server[1]));
 					System.out.println ("Connected.");
-					out = new DataOutputStream (client.getOutputStream ());
+					out = new BufferedWriter (new PrintWriter (client.getOutputStream ()));
 					in = new BufferedReader (new InputStreamReader (client.getInputStream ()));
 					
 					btnConnect.setText ("Disconnect!");
@@ -242,7 +213,25 @@ public class DevClientV2 extends Application {
 			 * 32 bit: End sequence
 			 *          0111 0111 0111 0111 / 0x7777
 			 */
-			sendData ("0002");
+			boolean successSent = sendData ("0002");
+			if(!successSent) {
+				System.out.println ("Connection seems dead, closing now");
+				killConn = true;
+				try {
+					if(in != null) {
+						in.close ();
+						in = null;
+					}
+					if(out != null) {
+						out.close ();
+						out = null;
+					}
+					if(client != null) {
+						client.close ();
+						client = null;
+					}
+				} catch(Exception e2) {}
+			}
 		});
 		
 		lbAllData = new Label ("Communication:");
@@ -302,29 +291,34 @@ public class DevClientV2 extends Application {
 		stage.show ();
 	}
 	
-	private void sendData(String userdata) {
-		byte[] data = {
-				(byte) 0xEE, (byte) 0xEE, (byte) 0xEE, (byte) 0xEE,
-				(byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00, (byte) 0x00,
-				(byte) 0x00, (byte) 0x00,
-				(byte) 0x77, (byte) 0x77, (byte) 0x77, (byte) 0x77};
+	private boolean sendData(String userdata) {
+		String millis = millis() + "";
 		
-		byte[] userbytes = hexToBytes(userdata);
-		System.arraycopy (userbytes, 0, data, 12, Math.min (2, userbytes.length));
-		
-		byte[] millis = longToBytes(millis());
-		System.arraycopy (millis, 0, data, 4, Math.min (8, millis.length));
+		processData(millis + ";" + userdata, false);
 		
 		try {
-			out.write (data);
+			out.write (millis + ";" + userdata + "\n");
+			out.flush ();
 		} catch (IOException ex) {
-			throw new RuntimeException (ex);
+			System.err.println ("Connection error!");
+			System.err.println (ex.getMessage ());
+			ex.getStackTrace ();
+			return false;
 		}
+		
+		return true;
 	}
 	
-	private void processData(byte[] data, boolean server) {
-		String hex = bytesToHex(data);
-		output(hex, server);
+	private void processData(String data, boolean server) {
+		String[] split = data.split (";");
+		if(server && split.length > 1) {
+			if(Objects.equals (split[1], "0001")) {
+				// Ping from server
+				System.out.println ("Server Ping");
+				lastPingReceived = millis();
+			}
+		}
+		output(data, server);
 	}
 	
 	private void output(String hex, boolean server) {
@@ -340,11 +334,19 @@ public class DevClientV2 extends Application {
 		now.setTime (date);
 		StringBuilder sb = new StringBuilder ();
 		sb
-				.append (now.get(Calendar.HOUR_OF_DAY))
+				.append (pad(now.get(Calendar.HOUR_OF_DAY)))
 				.append (":")
-				.append (now.get(Calendar.MINUTE))
+				.append (pad(now.get(Calendar.MINUTE)))
 				.append (":")
-				.append (now.get (Calendar.SECOND));
+				.append (pad(now.get (Calendar.SECOND)));
+		return sb.toString ();
+	}
+	
+	public static String pad(int v) {
+		StringBuilder sb = new StringBuilder ();
+		if(v < 10)
+			sb.append ("0");
+		sb.append (v);
 		return sb.toString ();
 	}
 	
