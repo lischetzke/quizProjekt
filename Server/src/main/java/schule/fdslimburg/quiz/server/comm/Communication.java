@@ -1,13 +1,12 @@
 package schule.fdslimburg.quiz.server.comm;
 
 import javafx.application.Platform;
+import org.controlsfx.control.action.ActionCheck;
 import schule.fdslimburg.quiz.server.IControl;
-import schule.fdslimburg.quiz.server.events.ClientDataEventArgs;
-import schule.fdslimburg.quiz.server.events.ClientDataEventListener;
-import schule.fdslimburg.quiz.server.events.NewClientEventArgs;
-import schule.fdslimburg.quiz.server.events.NewClientEventListener;
+import schule.fdslimburg.quiz.server.events.*;
 
 import java.io.IOException;
+import java.lang.annotation.Documented;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
@@ -35,7 +34,7 @@ public class Communication implements IControl {
 	private Thread threadHandlingClients;
 	private boolean stopThread = false;
 	private boolean runningAcceptingClients = false;
-	private final List<Client> clients = new ArrayList<> ();
+	public final List<Client> clients = new ArrayList<> ();
 	public List<EventListener> eventListeners = new ArrayList<> ();
 	
 	public Communication (int port) {
@@ -116,8 +115,23 @@ public class Communication implements IControl {
 		eventListeners.add (el);
 	}
 	
+	public void addRemoveClientEventListener(RemoveClientEventListener el) {
+		eventListeners.add (el);
+	}
+	
 	public void addClientDataEventListener(ClientDataEventListener el) {
 		eventListeners.add (el);
+	}
+	
+	public void triggerRemoveClientEvent(Client c) {
+		RemoveClientEventArgs args = new RemoveClientEventArgs ();
+		args.clientId = c.clientId;
+		
+		for(EventListener el : eventListeners) {
+			if(el instanceof RemoveClientEventListener) {
+				Platform.runLater (() -> ((RemoveClientEventListener) el).triggerEvent (args));
+			}
+		}
 	}
 	
 	public void triggerNewClientEvent(Client c) {
@@ -161,6 +175,7 @@ public class Communication implements IControl {
 		synchronized (clients) {
 			clients.remove (c);
 		}
+		triggerRemoveClientEvent (c);
 	}
 	
 	@Override

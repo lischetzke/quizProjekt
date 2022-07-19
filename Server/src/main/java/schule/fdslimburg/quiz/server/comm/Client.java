@@ -4,6 +4,8 @@ import java.io.*;
 import java.net.Socket;
 import java.util.Calendar;
 
+import static schule.fdslimburg.quiz.server.Util.millis;
+
 public class Client {
 	private static int clientIdCounter = 0;
 	protected Socket client;
@@ -39,11 +41,6 @@ public class Client {
 		input.close();
 		output.close();
 		client.close();
-	}
-	
-	public static long millis() {
-		Calendar calendar = Calendar.getInstance();
-		return calendar.getTimeInMillis();
 	}
 	
 	private boolean sendData(Client c, NetStatus code) {

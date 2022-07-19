@@ -9,6 +9,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.Hashtable;
 import java.util.List;
 
 public class Backend {
@@ -16,6 +18,8 @@ public class Backend {
 	
 	public Communication comm;
 	public List<Data> allQuestions;
+	// TODO: Get all new and removed clients through listener
+	public Dictionary<Integer, String> clientNames = new Hashtable<> ();
 	
 	public Backend (Communication comm) {
 		this.comm = comm;
