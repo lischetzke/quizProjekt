@@ -6,7 +6,7 @@ public class NetData {
 	
 	public static NetData parse(String data) {
 		String[] arrData = data.split(";");
-		System.out.println (data);
+		//System.out.println (data);
 		if(arrData.length < 2)
 			return null;
 		NetData n = new NetData();

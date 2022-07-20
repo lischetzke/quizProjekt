@@ -137,6 +137,7 @@ public class Communication implements IControl {
 	public void triggerNewClientEvent(Client c) {
 		NewClientEventArgs args = new NewClientEventArgs ();
 		args.clientId = c.clientId;
+		args.clientAddress = c.client.getInetAddress ();
 		
 		for(EventListener el : eventListeners) {
 			if(el instanceof NewClientEventListener) {

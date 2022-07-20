@@ -28,12 +28,7 @@ public class QMApp extends Application {
 	
 	public static void main (String[] args) {
 		String[] fontsMonospaced = { "Lucida Console", "Consolas", "Courier New", "Monospaced" };
-		System.out.println ("FontFamilies:");
 		List<String> fonts = Font.getFamilies ();
-		for (String f : fonts) {
-			System.out.println (f);
-		}
-		System.out.println ("====================");
 		
 		for (String s : fontsMonospaced) {
 			for (String f : fonts) {
@@ -261,16 +256,16 @@ public class QMApp extends Application {
 		miFileSave.setOnAction (e -> {
 			// Generate JSON
 			Data data = new Data ();
-			data.name = tfName.getText ();
+			data.name = b64e(tfName.getText ());
 			data.questions = new ArrayList<> ();
 			for(Question q : questions) {
 				QuestionSerialized qs = new QuestionSerialized ();
-				qs.question = q.getQuestion ();
+				qs.question = b64e(q.getQuestion ());
 				qs.answers = new ArrayList<> ();
 				
 				for(Answer a : answers.get (q)) {
 					AnswerSerialized as = new AnswerSerialized ();
-					as.answer = a.getAnswer ();
+					as.answer = b64e(a.getAnswer ());
 					as.correct = a.getCorrect ();
 					
 					qs.answers.add (as);
@@ -279,7 +274,7 @@ public class QMApp extends Application {
 				if(q == tblQuestions.getSelectionModel ().getSelectedItem ()) {
 					for(Answer a : tblAnswers.getItems ()) {
 						AnswerSerialized as = new AnswerSerialized ();
-						as.answer = a.getAnswer ();
+						as.answer = b64e(a.getAnswer ());
 						as.correct = a.getCorrect ();
 						
 						qs.answers.add (as);
@@ -298,5 +293,13 @@ public class QMApp extends Application {
 		miFileExit.setOnAction (e -> {
 			System.exit (0);
 		});
+	}
+	
+	public static String b64e(String in) {
+		return Base64.getEncoder().withoutPadding().encodeToString(in.getBytes());
+	}
+	
+	public static String b64d(String in) {
+		return new String(Base64.getDecoder().decode(in));
 	}
 }

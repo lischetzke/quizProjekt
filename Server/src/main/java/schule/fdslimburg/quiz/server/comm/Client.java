@@ -1,13 +1,18 @@
 package schule.fdslimburg.quiz.server.comm;
 
 import java.io.*;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Calendar;
+import java.util.Dictionary;
+import java.util.Hashtable;
 
 import static schule.fdslimburg.quiz.server.Util.millis;
 
 public class Client {
 	private static int clientIdCounter = 0;
+	private static Dictionary<InetAddress, Integer> clientIdMapping = new Hashtable<> ();
+	
 	protected Socket client;
 	protected int clientId;
 	public BufferedReader input;
@@ -21,7 +26,16 @@ public class Client {
 	public Client(Communication comm, Socket conn) throws IOException {
 		this.client = conn;
 		synchronized (this) {
-			this.clientId = clientIdCounter++;
+			// Check if ID exists for IP
+			Integer oldId = clientIdMapping.get (this.client.getInetAddress ());
+			if(oldId == null) {
+				this.clientId = clientIdCounter++;
+				clientIdMapping.put (this.client.getInetAddress (), this.clientId);
+				System.out.println ("New client connected: " + this.client.getInetAddress ().toString () + " / " + this.clientId);
+			} else {
+				this.clientId = oldId;
+				System.out.println ("Existing client reconnected: " + this.client.getInetAddress ().toString () + " / " + this.clientId);
+			}
 		}
 		this.input = new BufferedReader (new InputStreamReader (conn.getInputStream ()));
 		this.output = new BufferedWriter (new PrintWriter(conn.getOutputStream ()));
@@ -80,7 +94,7 @@ public class Client {
 					if((c.lastPingSent + 1000) < millis()) {
 						successfulPingSent = c.sendData (c, NetStatus.PING);
 						c.lastPingSent = millis();
-						System.out.println ("Send Ping to " + c.client.getInetAddress ().toString () + " at " + c.lastPingSent);
+						//System.out.println ("Send Ping to " + c.client.getInetAddress ().toString () + " at " + c.lastPingSent);
 					}
 					
 					// Check if clients last ping is 2 seconds old
@@ -105,14 +119,14 @@ public class Client {
 					
 					if(data.status == NetStatus.PING) {
 						c.lastPingReceived = millis();
-						System.out.println ("Ping received for " + c.client.getInetAddress ().toString () + " at " + c.lastPingReceived);
+						//System.out.println ("Ping received for " + c.client.getInetAddress ().toString () + " at " + c.lastPingReceived);
 					} else {
 						// Show Client data
 						
 						
-						String datastring1 = String.format("%8s", Long.toBinaryString(data.timestamp)).replace(' ', '0');
-						String datastring2 = String.format("%8s", Integer.toBinaryString(data.status.value)).replace(' ', '0');
-						System.out.println ("Client data received: " + datastring1 + " / " + datastring2);
+						//String datastring1 = String.format("%8s", Long.toBinaryString(data.timestamp)).replace(' ', '0');
+						//String datastring2 = String.format("%8s", Integer.toBinaryString(data.status.value)).replace(' ', '0');
+						//System.out.println ("Client data received: " + datastring1 + " / " + datastring2);
 					}
 					
 					// Fire ClientDataEvent

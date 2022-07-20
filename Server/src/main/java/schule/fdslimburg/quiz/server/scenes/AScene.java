@@ -1,13 +1,34 @@
 package schule.fdslimburg.quiz.server.scenes;
 
 import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.Paint;
 import schule.fdslimburg.quiz.server.backend.Backend;
 
 public abstract class AScene {
 	private static int _sceneId = 0;
 	private int sceneId = -1;
-	protected Scene scene;
+	protected Pane root;
 	protected SceneStatus sceneStatus;
+	protected Backend backend;
+	
+	protected enum Style {
+		BACKGROUND(Color.BLACK),
+		FOREGROUND(Color.LIGHTGRAY),
+		RED(Color.RED),
+		GREEN(Color.GREEN);
+		
+		public Paint p;
+		
+		Style(Paint p) {
+			this.p = p;
+		}
+		
+		public Paint value() {
+			return p;
+		}
+	}
 	
 	public AScene() {
 		synchronized (AScene.class) {
@@ -25,8 +46,11 @@ public abstract class AScene {
 		return status;
 	}
 	
+	public Pane getRoot() {
+		return root;
+	}
+	
 	public abstract void createScene(Backend backend);
-	public abstract Scene getScene();
 	public abstract void updateScene();
 	public abstract void resetScene();
 }

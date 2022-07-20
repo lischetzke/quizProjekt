@@ -2,22 +2,25 @@ package schule.fdslimburg.quiz.server.backend;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import schule.fdslimburg.quiz.server.Game;
+import schule.fdslimburg.quiz.server.backend.data.AnswerSerialized;
 import schule.fdslimburg.quiz.server.backend.data.Data;
+import schule.fdslimburg.quiz.server.backend.data.QuestionSerialized;
 import schule.fdslimburg.quiz.server.comm.Communication;
+import schule.fdslimburg.quiz.server.events.NewClientEventArgs;
+import schule.fdslimburg.quiz.server.events.NewClientEventListener;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Dictionary;
-import java.util.Hashtable;
-import java.util.List;
+import java.util.*;
 
-public class Backend {
+public class Backend implements NewClientEventListener {
 	// The real shit
 	
 	public Communication comm;
 	public List<Data> allQuestions;
+	public Game game;
 	// TODO: Get all new and removed clients through listener
 	public Dictionary<Integer, String> clientNames = new Hashtable<> ();
 	
@@ -67,6 +70,8 @@ public class Backend {
 				}
 			});
 			
+			b64decodeAll();
+			
 			int questions = 0;
 			for(Data d : allQuestions) {
 				questions += d.questions.size ();
@@ -81,10 +86,29 @@ public class Backend {
 		}
 	}
 	
+	private void b64decodeAll() {
+		for(Data d : allQuestions) {
+			d.name = b64d(d.name);
+			
+			for(QuestionSerialized q : d.questions) {
+				q.question = b64d (q.question);
+				
+				for(AnswerSerialized a : q.answers) {
+					a.answer = b64d (a.answer);
+				}
+			}
+		}
+	}
+	
+	public static String b64d(String in) {
+		return new String(Base64.getDecoder().decode(in));
+	}
+	
 	private void createQuestionsInitial () {
 		String path = "/schule/fdslimburg/quiz/server/backend/questions/";
-		String[] initalQuestions = new String[]{
-				"init-01.json"
+		String[] initalQuestions = new String[] {
+				"init-01-wwm.json",
+				"init-02-pm-6v3.json"
 		};
 		
 		Path dirQuestions = Path.of ("./questions");
@@ -133,5 +157,14 @@ public class Backend {
 		}
 		
 		return jarFolder + resourceName;
+	}
+	
+	@Override
+	public void triggerEvent (NewClientEventArgs ea) {
+		String clientName = clientNames.get (ea.clientId);
+		if(clientName == null) {
+			// New client
+			clientNames.put (ea.clientId, "Client " + ea.clientId + " (" + ea.clientAddress.toString () + ")");
+		}
 	}
 }

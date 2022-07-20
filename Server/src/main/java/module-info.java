@@ -10,4 +10,5 @@ module schule.fdslimburg.quiz.server {
 	opens schule.fdslimburg.quiz.server to javafx.fxml;
 	exports schule.fdslimburg.quiz.server;
 	exports schule.fdslimburg.quiz.server.backend.data;
+	exports schule.fdslimburg.quiz.server.scenes.tableHelper;
 }
