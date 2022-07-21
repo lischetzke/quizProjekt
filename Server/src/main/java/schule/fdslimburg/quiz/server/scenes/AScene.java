@@ -15,9 +15,10 @@ public abstract class AScene {
 	
 	protected enum Style {
 		BACKGROUND(Color.BLACK),
-		FOREGROUND(Color.LIGHTGRAY),
+		FOREGROUND(Color.WHITESMOKE),
 		RED(Color.RED),
-		GREEN(Color.GREEN);
+		GREEN(Color.GREEN),
+		WHITE(Color.WHITE);
 		
 		public Paint p;
 		

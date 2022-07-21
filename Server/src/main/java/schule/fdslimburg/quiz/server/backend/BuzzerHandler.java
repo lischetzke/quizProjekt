@@ -2,6 +2,7 @@ package schule.fdslimburg.quiz.server.backend;
 
 import schule.fdslimburg.quiz.server.IControl;
 import schule.fdslimburg.quiz.server.comm.Communication;
+import schule.fdslimburg.quiz.server.comm.NetStatus;
 import schule.fdslimburg.quiz.server.events.ClientDataEventArgs;
 import schule.fdslimburg.quiz.server.events.ClientDataEventListener;
 
@@ -14,6 +15,7 @@ public class BuzzerHandler implements ClientDataEventListener, Runnable, IContro
 	public long firstPress = 0L;
 	public long clientTimestamp = 0L;
 	public int clientId;
+	private final int lockTime = 200;
 	
 	private boolean running = false;
 	private boolean stopThread = false;
@@ -27,13 +29,16 @@ public class BuzzerHandler implements ClientDataEventListener, Runnable, IContro
 	
 	@Override
 	public void triggerEvent (ClientDataEventArgs ea) {
+		if(ea.data.status != NetStatus.PRESS)
+			return;
+		
 		synchronized (_lock) {
 			if (!locked && firstPress == 0) {
 				pressed = true;
 				firstPress = millis ();
 				clientId = ea.clientId;
 				clientTimestamp = ea.data.timestamp;
-			} else if (!locked && millis () < (firstPress + 500)) {
+			} else if (!locked && millis () < (firstPress + lockTime)) {
 				if (ea.data.timestamp < clientTimestamp) {
 					// Client was "faster"
 					clientTimestamp = ea.data.timestamp;
@@ -48,7 +53,7 @@ public class BuzzerHandler implements ClientDataEventListener, Runnable, IContro
 		running = true;
 		
 		while(!stopThread) {
-			if(firstPress != 0 && millis() > (firstPress + 500)) {
+			if(firstPress != 0 && millis() > (firstPress + lockTime)) {
 				synchronized (_lock) {
 					locked = true;
 					// Soft-Reset
@@ -58,7 +63,7 @@ public class BuzzerHandler implements ClientDataEventListener, Runnable, IContro
 			}
 			
 			try {
-				Thread.sleep(100);
+				Thread.sleep(20);
 			} catch (InterruptedException e) {
 				throw new RuntimeException (e);
 			}
