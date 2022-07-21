@@ -11,9 +11,24 @@ import schule.fdslimburg.quiz.server.scenes.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class Server extends Application {
 	public static void main (String[] args) {
+		Scanner s = new Scanner (System.in);
+		
+		new Thread(() -> {
+			if(s.hasNextLine ()) {
+				String line = s.nextLine ();
+				if(line.equalsIgnoreCase ("exit")) {
+					System.exit (0);
+				}
+			}
+			try {
+				Thread.sleep (200);
+			} catch (InterruptedException ignore) {}
+		}).start ();
+		
 		launch ();
 	}
 	
